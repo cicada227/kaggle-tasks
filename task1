@@ -25,7 +25,6 @@ BATCH = 16
 N_FOLDS = 5
 EPOCHS2 = 50
 
-# ---------- 1. 加载数据 ----------
 X_all, y_all = [], []
 for ci, c in enumerate(class_names):
     for f in sorted(os.listdir(os.path.join(train_dir, c))):
@@ -40,7 +39,7 @@ test_files = sorted([f for f in os.listdir(test_dir) if f.lower().endswith(('.pn
 X_test = np.array([image.img_to_array(image.load_img(os.path.join(test_dir, f), target_size=IMG_SIZE))
                    for f in test_files], np.float32)
 
-# ---------- 2. 10路 TTA ----------
+
 def tta10(arr):
     h = arr.shape[0]; c = int(h * 0.9); o = (h - c) // 2
     return np.array([
@@ -52,7 +51,7 @@ def tta10(arr):
         np.rot90(np.fliplr(arr), 1).copy() # 第10路
     ])
 
-# ---------- 3. 5折交叉验证训练 (带跳过检测) ----------
+
 oof_test_probs = np.zeros((len(test_files), NUM_CLASSES), np.float64)
 val_accs = []
 skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=42)
@@ -101,13 +100,13 @@ for fold, (train_idx, val_idx) in enumerate(skf.split(X_all, y_all)):
                              ModelCheckpoint(f'best_fold_{fold}.keras', 'val_accuracy', save_best_only=True)])
         best_model = models.load_model(f'best_fold_{fold}.keras')
 
-    # 评估与记录
+ 
     gen_va_eval = ImageDataGenerator().flow(X_all[val_idx], y_cat[val_idx], batch_size=BATCH, shuffle=False)
     va_loss, va_acc = best_model.evaluate(gen_va_eval, verbose=0)
     val_accs.append(va_acc)
     print(f'Fold {fold} val_acc = {va_acc:.4f}', flush=True)
 
-    # 分批TTA预测
+
     fold_probs = np.zeros((len(test_files), NUM_CLASSES), np.float64)
     for i in range(0, len(test_files), BATCH):
         batch_arr = X_test[i:i+BATCH]
